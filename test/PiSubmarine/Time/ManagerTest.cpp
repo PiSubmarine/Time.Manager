@@ -83,11 +83,11 @@ namespace PiSubmarine::Time
         const auto runResult = manager.Run();
         ASSERT_TRUE(runResult.has_value());
 
-        const std::vector expectedUptime{
+        const std::vector<std::chrono::nanoseconds> expectedUptime{
             std::chrono::nanoseconds{0},
             std::chrono::milliseconds{1},
             std::chrono::milliseconds{2}};
-        const std::vector expectedDelta{
+        const std::vector<std::chrono::nanoseconds> expectedDelta{
             std::chrono::nanoseconds{0},
             std::chrono::milliseconds{1},
             std::chrono::milliseconds{1}};

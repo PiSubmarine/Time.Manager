@@ -3,6 +3,7 @@
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <thread>
 #include <vector>
 
 #include "PiSubmarine/Error/Api/Result.h"
