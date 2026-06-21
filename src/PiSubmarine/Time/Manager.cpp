@@ -11,10 +11,12 @@ namespace PiSubmarine::Time
     Manager::Manager(
         const std::chrono::nanoseconds tickPeriod,
         Clock clock,
-        SleepUntil sleepUntil)
+        SleepUntil sleepUntil,
+        SystemClock systemClock)
         : m_TickPeriod(tickPeriod)
         , m_Clock(std::move(clock))
         , m_SleepUntil(std::move(sleepUntil))
+        , m_SystemClock(std::move(systemClock))
     {
     }
 
@@ -51,6 +53,13 @@ namespace PiSubmarine::Time
         return {};
     }
 
+    Error::Api::Result<Telemetry::Api::State> Manager::GetState() const
+    {
+        return Telemetry::Api::State{
+            .Uptime = m_CurrentUptime,
+            .SystemTime = m_SystemClock()};
+    }
+
     Error::Api::Result<void> Manager::Run()
     {
         if (m_IsRunning)
@@ -75,6 +84,7 @@ namespace PiSubmarine::Time
             const auto currentTime = m_Clock();
             const auto uptime = std::chrono::duration_cast<std::chrono::nanoseconds>(currentTime - startTime);
             const auto deltaTime = std::chrono::duration_cast<std::chrono::nanoseconds>(currentTime - lastTickTime);
+            m_CurrentUptime = uptime;
 
             for (auto* const tickable : m_Tickables)
             {

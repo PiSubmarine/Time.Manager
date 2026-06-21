@@ -10,6 +10,7 @@ This module owns:
 - registration of tickable objects
 - fixed-period tick pacing
 - uptime and delta-time calculation
+- exposing current runtime time telemetry through `Time.Telemetry.Api`
 - a blocking `Run()` loop
 
 It does not own:

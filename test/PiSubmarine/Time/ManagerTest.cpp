@@ -47,6 +47,22 @@ namespace PiSubmarine::Time
         EXPECT_EQ(result.error().Cause, make_error_code(ErrorCode::TickableAlreadyAdded));
     }
 
+    TEST(ManagerTest, GetStateReportsZeroUptimeAndCurrentSystemTimeBeforeRun)
+    {
+        const auto expectedSystemTime = Telemetry::Api::SystemTimePoint{std::chrono::nanoseconds{987654321}};
+        Manager manager(
+            std::chrono::milliseconds(10),
+            [] { return Manager::TimePoint{}; },
+            [](const Manager::TimePoint&) {},
+            [&] { return expectedSystemTime; });
+
+        const auto stateResult = manager.GetState();
+
+        ASSERT_TRUE(stateResult.has_value());
+        EXPECT_EQ(stateResult->Uptime, std::chrono::nanoseconds::zero());
+        EXPECT_EQ(stateResult->SystemTime, expectedSystemTime);
+    }
+
     TEST(ManagerTest, RejectsRemovingUnknownTickable)
     {
         Manager manager(std::chrono::milliseconds(10));
@@ -60,6 +76,7 @@ namespace PiSubmarine::Time
     TEST(ManagerTest, RunTicksAllTickablesWithFixedSchedule)
     {
         auto currentTime = Manager::TimePoint{};
+        auto currentSystemTime = Telemetry::Api::SystemTimePoint{};
 
         Manager* managerPointer = nullptr;
         RecordingTickable firstTickable([&](const auto&, const auto&)
@@ -74,7 +91,12 @@ namespace PiSubmarine::Time
         Manager manager(
             std::chrono::milliseconds(1),
             [&] { return currentTime; },
-            [&](const Manager::TimePoint& deadline) { currentTime = deadline; });
+            [&](const Manager::TimePoint& deadline)
+            {
+                currentTime = deadline;
+                currentSystemTime += std::chrono::milliseconds{1};
+            },
+            [&] { return currentSystemTime; });
         managerPointer = &manager;
 
         ASSERT_TRUE(manager.AddTickable(firstTickable).has_value());
@@ -97,6 +119,39 @@ namespace PiSubmarine::Time
         EXPECT_EQ(secondTickable.UptimeCalls, expectedUptime);
         EXPECT_EQ(secondTickable.DeltaCalls, expectedDelta);
         EXPECT_FALSE(manager.IsRunning());
+    }
+
+    TEST(ManagerTest, GetStateReportsCurrentTelemetryTimeDuringRun)
+    {
+        auto currentTime = Manager::TimePoint{};
+        auto currentSystemTime = Telemetry::Api::SystemTimePoint{std::chrono::nanoseconds{1230000000}};
+
+        Manager manager(
+            std::chrono::milliseconds(1),
+            [&] { return currentTime; },
+            [&](const Manager::TimePoint& deadline)
+            {
+                currentTime = deadline;
+                currentSystemTime += std::chrono::milliseconds{1};
+            },
+            [&] { return currentSystemTime; });
+
+        RecordingTickable tickable([&](const auto&, const auto&)
+        {
+            if (tickable.UptimeCalls.size() == 3)
+            {
+                manager.Stop();
+            }
+        });
+
+        ASSERT_TRUE(manager.AddTickable(tickable).has_value());
+        ASSERT_TRUE(manager.Run().has_value());
+
+        const auto stateResult = manager.GetState();
+
+        ASSERT_TRUE(stateResult.has_value());
+        EXPECT_EQ(stateResult->Uptime, std::chrono::milliseconds{2});
+        EXPECT_EQ(stateResult->SystemTime, Telemetry::Api::SystemTimePoint{std::chrono::nanoseconds{1232000000}});
     }
 
     TEST(ManagerTest, RemoveTickablePreventsFurtherTicks)
