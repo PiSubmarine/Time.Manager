@@ -11,7 +11,7 @@ namespace PiSubmarine::Time
         class RecordingTickable final : public ITickable
         {
         public:
-            explicit RecordingTickable(std::function<void(const std::chrono::nanoseconds&, const std::chrono::nanoseconds&)> onTick = {})
+            explicit RecordingTickable(std::function<void(const std::chrono::nanoseconds&, const std::chrono::nanoseconds&)> onTick = nullptr)
                 : m_OnTick(std::move(onTick))
             {
             }
